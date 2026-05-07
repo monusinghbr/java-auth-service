@@ -23,19 +23,26 @@ public class AuthRepository {
 
     public Optional<AuthUserRow> findByEmail(String email) {
         String sql = """
-                SELECT 
-                    id,
-                    tenant_id,
-                    name,
-                    email,
-                    password_hash,
-                    role_code,
-                    user_type,
-                    mfa_enabled,
-                    status
-                FROM users
-                WHERE email = :email
-                  AND is_deleted = 0
+                SELECT
+                    u.id,
+                    u.tenant_id,
+                    u.full_name AS name,
+                    u.email,
+                    u.password_hash,
+                    r.role_code,
+                    u.user_type,
+                    false AS mfa_enabled,
+                    u.status
+                FROM users u
+                LEFT JOIN user_roles ur
+                       ON ur.user_id = u.id
+                      AND ur.tenant_id = u.tenant_id
+                LEFT JOIN roles r
+                       ON r.id = ur.role_id
+                      AND r.is_deleted = 0
+                      AND r.status = 'ACTIVE'
+                WHERE u.email = :email
+                  AND u.is_deleted = 0
                 LIMIT 1
                 """;
 
@@ -67,17 +74,24 @@ public class AuthRepository {
 
     public Optional<LoginResponse.AuthUserResponse> findCurrentUserById(Long userId) {
         String sql = """
-                SELECT 
-                    id,
-                    tenant_id,
-                    name,
-                    email,
-                    role_code,
-                    user_type
-                FROM users
-                WHERE id = :userId
-                  AND status = 'ACTIVE'
-                  AND is_deleted = 0
+                SELECT
+                    u.id,
+                    u.tenant_id,
+                    u.full_name AS name,
+                    u.email,
+                    r.role_code,
+                    u.user_type
+                FROM users u
+                LEFT JOIN user_roles ur
+                       ON ur.user_id = u.id
+                      AND ur.tenant_id = u.tenant_id
+                LEFT JOIN roles r
+                       ON r.id = ur.role_id
+                      AND r.is_deleted = 0
+                      AND r.status = 'ACTIVE'
+                WHERE u.id = :userId
+                  AND u.status = 'ACTIVE'
+                  AND u.is_deleted = 0
                 LIMIT 1
                 """;
 
