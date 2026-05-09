@@ -29,7 +29,7 @@ public class AuthRepository {
                     u.full_name AS name,
                     u.email,
                     u.password_hash,
-                    r.role_code,
+                    COALESCE(r.role_code, u.role_code) AS role_code,
                     u.user_type,
                     false AS mfa_enabled,
                     u.status
@@ -79,7 +79,7 @@ public class AuthRepository {
                     u.tenant_id,
                     u.full_name AS name,
                     u.email,
-                    r.role_code,
+                    COALESCE(r.role_code, u.role_code) AS role_code,
                     u.user_type
                 FROM users u
                 LEFT JOIN user_roles ur
