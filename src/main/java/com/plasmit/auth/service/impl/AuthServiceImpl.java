@@ -42,24 +42,16 @@ public class AuthServiceImpl implements AuthService {
             log.warn("Login blocked. User inactive. userId={}, status={}", user.getId(), user.getStatus());
             throw new BadCredentialsException("User account is not active");
         }
-        
-        
-
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new BadCredentialsException("Password cannot be empty");
         }
 
-		/*
-		 * String rawPassword = request.getPassword().trim();
-		 * log.info("RAW password='{}', length={}", rawPassword, rawPassword.length());
-		 * log.info("DB hash='{}'", user.getPasswordHash());
-		 * log.info("DB hash length={}", user.getPasswordHash() == null ? 0 :
-		 * user.getPasswordHash().length());
-		 * 
-		 * if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-		 * log.warn("Login failed. Invalid password. userId={}", user.getId()); throw
-		 * new BadCredentialsException("Invalid email or password"); }
-		 */
+        String rawPassword = request.getPassword().trim();
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            log.warn("Login failed. Invalid password. userId={}", user.getId());
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
