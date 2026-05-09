@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -26,6 +27,9 @@ public class AuthRepository {
                 SELECT
                     u.id,
                     u.tenant_id,
+                    u.hospital_id,
+                    u.branch_id,
+                    u.department_id,
                     u.full_name AS name,
                     u.email,
                     u.password_hash,
@@ -54,6 +58,9 @@ public class AuthRepository {
                     new AuthUserRow(
                             rs.getLong("id"),
                             rs.getObject("tenant_id") == null ? null : rs.getLong("tenant_id"),
+                            rs.getObject("hospital_id") == null ? null : rs.getLong("hospital_id"),
+                            rs.getObject("branch_id") == null ? null : rs.getLong("branch_id"),
+                            rs.getObject("department_id") == null ? null : rs.getLong("department_id"),
                             rs.getString("name"),
                             rs.getString("email"),
                             rs.getString("password_hash"),
@@ -64,12 +71,36 @@ public class AuthRepository {
                     )
             );
 
+            if (user != null) {
+                user.setPermissions(findPermissionsByUserId(user.getId()));
+            }
+
             return Optional.ofNullable(user);
 
         } catch (EmptyResultDataAccessException ex) {
             log.warn("User not found for email={}", email);
             return Optional.empty();
         }
+    }
+
+    private List<String> findPermissionsByUserId(Long userId) {
+        String sql = """
+                SELECT DISTINCT p.permission_key
+                FROM user_roles ur
+                JOIN role_permissions rp
+                  ON rp.role_id = ur.role_id
+                 AND rp.tenant_id = ur.tenant_id
+                JOIN permissions p
+                  ON p.id = rp.permission_id
+                 AND p.status = 'ACTIVE'
+                WHERE ur.user_id = :userId
+                ORDER BY p.permission_key
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId);
+
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("permission_key"));
     }
 
     public Optional<LoginResponse.AuthUserResponse> findCurrentUserById(Long userId) {
@@ -137,6 +168,9 @@ public class AuthRepository {
 
         private Long id;
         private Long tenantId;
+        private Long hospitalId;
+        private Long branchId;
+        private Long departmentId;
         private String name;
         private String email;
         private String passwordHash;
@@ -144,11 +178,16 @@ public class AuthRepository {
         private String userType;
         private boolean mfaEnabled;
         private String status;
+        private List<String> permissions = List.of();
 
-        public AuthUserRow(Long id, Long tenantId, String name, String email, String passwordHash,
+        public AuthUserRow(Long id, Long tenantId, Long hospitalId, Long branchId, Long departmentId,
+                           String name, String email, String passwordHash,
                            String roleCode, String userType, boolean mfaEnabled, String status) {
             this.id = id;
             this.tenantId = tenantId;
+            this.hospitalId = hospitalId;
+            this.branchId = branchId;
+            this.departmentId = departmentId;
             this.name = name;
             this.email = email;
             this.passwordHash = passwordHash;
@@ -164,6 +203,18 @@ public class AuthRepository {
 
         public Long getTenantId() {
             return tenantId;
+        }
+
+        public Long getHospitalId() {
+            return hospitalId;
+        }
+
+        public Long getBranchId() {
+            return branchId;
+        }
+
+        public Long getDepartmentId() {
+            return departmentId;
         }
 
         public String getName() {
@@ -192,6 +243,14 @@ public class AuthRepository {
 
         public String getStatus() {
             return status;
+        }
+
+        public List<String> getPermissions() {
+            return permissions;
+        }
+
+        public void setPermissions(List<String> permissions) {
+            this.permissions = permissions == null ? List.of() : permissions;
         }
     }
 }

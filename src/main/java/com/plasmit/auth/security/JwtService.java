@@ -33,24 +33,31 @@ public class JwtService {
 
     public String generateAccessToken(AuthUserRow user) {
         log.debug("Generating access token for userId={}, tenantId={}", user.getId(), user.getTenantId());
-        return generateToken(user, accessTokenExpirationMs);
+        return generateToken(user, accessTokenExpirationMs, "ACCESS");
     }
 
     public String generateRefreshToken(AuthUserRow user) {
         log.debug("Generating refresh token for userId={}", user.getId());
-        return generateToken(user, refreshTokenExpirationMs);
+        return generateToken(user, refreshTokenExpirationMs, "REFRESH");
     }
 
-    private String generateToken(AuthUserRow user, Long expirationMs) {
+    private String generateToken(AuthUserRow user, Long expirationMs, String tokenType) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(String.valueOf(user.getId()))
+                .claim("tokenType", tokenType)
+                .claim("userId", user.getId())
                 .claim("tenantId", user.getTenantId())
+                .claim("hospitalId", user.getHospitalId())
+                .claim("branchId", user.getBranchId())
+                .claim("departmentId", user.getDepartmentId())
+                .claim("name", user.getName())
                 .claim("email", user.getEmail())
                 .claim("role", user.getRoleCode())
                 .claim("userType", user.getUserType())
+                .claim("permissions", user.getPermissions())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
